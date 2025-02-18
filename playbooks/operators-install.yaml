@@ -110,10 +110,12 @@
        - "{{lookup('pipe', 'pwd')}}/files/networkdefinition.yaml"
        - "{{lookup('pipe', 'pwd')}}/files/mellanox-test.yaml"
 
-   - name: Update Active mellanox NIC in network-operator-values.yaml
-     when: "enable_network_operator == true and network_operator.rc == 1 and 'running' in k8sup.stdout and cns_version >= 4.1"
-     failed_when: false
-     shell: 'sed -i "s/devices: \[.*\]/devices: \\[ {{ active_nic.stdout }}\]/g" {{ ansible_user_dir }}/network-operator-values.yaml'
+   - name: Update NFD settings in network-operator-values.yaml when both Network and GPU Operator are enabled
+     when: "enable_network_operator == true and enable_gpu_operator == true and network_operator.rc == 1 and 'running' in k8sup.stdout and cns_version >= 4.1"
+     replace:
+       path: "{{ ansible_user_dir }}/network-operator-values.yaml"
+       regexp: '(nfd:\n\s+enabled:) true(\n\s+deployNodeFeatureRules:) true'
+       replace: '\1 false\2 false'
 
    - name: Installing the Network Operator on NVIDIA Cloud Native Stack
      when: "enable_network_operator == true and network_operator.rc == 1 and 'running' in k8sup.stdout and cns_version >= 4.1"
@@ -190,7 +192,7 @@
        - name: Install CC Runtime
          shell: "kubectl apply -f {{ ansible_user_dir }}/ccruntime.yaml"
 
-       - name: Install NVIDIA GPU Operator for Confidential Computing 
+       - name: Install NVIDIA GPU Operator for Confidential Computing
          shell: helm install --version {{ gpu_operator_version }} --values {{ ansible_user_dir }}/values.yaml --wait --generate-name -n nvidia-gpu-operator --create-namespace nvidia/gpu-operator --set sandboxWorkloads.enabled=true --set kataManager.enabled=true --set ccManager.enabled=true --set nfd.nodefeaturerules=true
 
        - name: Setting the Node Level Mode
